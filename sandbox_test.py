@@ -242,12 +242,8 @@ class ContractInteractionsTestCase(SandboxedNodeTestCase):
         result = self._find_call_result_by_hash(self.p1, opg['hash'])
 
         # collect:
-        collect_params = {
-            'objkt_amount': 1,
-            'swap_id': swap_id
-        }
         opg = self.buyer.contract(self.marketplace.address).collect(
-            collect_params).with_amount(1_000_000).inject()
+            swap_id).with_amount(1_000_000).inject()
 
         self.bake_block()
         result = self._find_call_result_by_hash(self.p1, opg['hash'])
@@ -268,18 +264,12 @@ class ContractInteractionsTestCase(SandboxedNodeTestCase):
         self.bake_block()
         result = self._find_call_result_by_hash(self.p1, opg['hash'])
 
-        # trying to buy with low-price swap but more that in the swap:
-        collect_params = {
-            'objkt_amount': 10,
-            'swap_id': swap_id
-        }
-
-        # This should raise error, because there are only 1 item in swap,
-        # but there are no error!:
+        # rebuing second swap:
         opg = self.p2.contract(self.marketplace.address).collect(
-            collect_params).with_amount(10*100).inject()
+            swap_id).with_amount(1*100).inject()
         self.bake_block()
         result = self._find_call_result_by_hash(self.p1, opg['hash'])
 
-        # and p2 should not receive this 10 objkts:
-        assert self.objkts.storage['ledger'][(pkh(self.p2), 0)]() == 10
+        # and p2 should not receive this 1 objkt:
+        assert self.objkts.storage['ledger'][(pkh(self.p2), 0)]() == 1
+        assert self.objkts.storage['ledger'][(self.marketplace.address, 0)]() == 99
