@@ -12,7 +12,8 @@ objkt_swap:  https://better-call.dev/mainnet/KT1Hkg5qeNhfwpKW4fXvq7HGZB9z2EnmCCA
 
 from pytezos.sandbox.node import SandboxedNodeTestCase
 from pytezos.sandbox.parameters import sandbox_addresses, sandbox_commitment
-from pytezos import ContractInterface, pytezos, MichelsonRuntimeError
+from pytezos import ContractInterface, pytezos
+from pytezos.rpc.errors import MichelsonError
 from pytezos.contract.result import ContractCallResult
 import unittest
 from os.path import dirname, join
@@ -273,3 +274,12 @@ class ContractInteractionsTestCase(SandboxedNodeTestCase):
         # and p2 should not receive this 1 objkt:
         assert self.objkts.storage['ledger'][(pkh(self.p2), 0)]() == 1
         assert self.objkts.storage['ledger'][(self.marketplace.address, 0)]() == 99
+
+        # Trying to use this second swap second time:
+        with self.assertRaises(MichelsonError) as cm:
+            opg = self.p2.contract(self.marketplace.address).collect(
+                swap_id).with_amount(1*100).inject()
+            self.bake_block()
+            result = self._find_call_result_by_hash(self.p1, opg['hash'])
+        # self.assertTrue('Entrypoint can call only administrator' in str(cm.exception))
+
