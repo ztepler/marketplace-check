@@ -281,5 +281,62 @@ class ContractInteractionsTestCase(SandboxedNodeTestCase):
                 swap_id).with_amount(1*100).inject()
             self.bake_block()
             result = self._find_call_result_by_hash(self.p1, opg['hash'])
-        # self.assertTrue('Entrypoint can call only administrator' in str(cm.exception))
+
+        # Trying to collect swap that does not exist:
+        with self.assertRaises(MichelsonError) as cm:
+            opg = self.p2.contract(self.marketplace.address).collect(
+                3).with_amount(1*100).inject()
+            self.bake_block()
+
+        # 0-tez swap
+        self._add_operator(self.objkts, self.p2, self.marketplace.address, 0)
+        self.bake_block()
+
+        marketplace = self.p2.contract(self.marketplace.address)
+        swap_id = marketplace.storage['counter']()
+
+        swap_params.update({
+            'objkt_amount': 1,
+            'xtz_per_objkt': 0
+        })
+        opg = marketplace.swap(swap_params).inject()
+        self.bake_block()
+
+        opg = self.buyer.contract(self.marketplace.address).collect(
+            swap_id).with_amount(0).inject()
+        self.bake_block()
+
+        assert self.objkts.storage['ledger'][(pkh(self.buyer), 0)]() == 1
+        assert self.objkts.storage['ledger'][(self.marketplace.address, 0)]() == 99
+
+        # Trying to swap more objects that have:
+        with self.assertRaises(MichelsonError) as cm:
+            marketplace = self.buyer.contract(self.marketplace.address)
+            swap_id = marketplace.storage['counter']()
+
+            swap_params.update({
+                'objkt_amount': 2,
+                'xtz_per_objkt': 0
+            })
+            opg = marketplace.swap(swap_params).inject()
+            self.bake_block()
+
+        self.assertTrue('FA2_INSUFFICIENT_BALANCE' in str(cm.exception))
+
+
+        # Trying to sell objkt for price that leads to 0-fees trans:
+        # this is raising contract.empty_transaction but it should not
+        marketplace = self.buyer.contract(self.marketplace.address)
+        swap_id = marketplace.storage['counter']()
+
+        swap_params.update({
+            'objkt_amount': 1,
+            'xtz_per_objkt': 10
+        })
+        opg = marketplace.swap(swap_params).inject()
+        self.bake_block()
+
+        opg = self.p2.contract(self.marketplace.address).collect(
+            swap_id).with_amount(10).inject()
+        self.bake_block()
 
